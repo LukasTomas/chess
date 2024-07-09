@@ -1,0 +1,25 @@
+ConvNet:
+	relu(Conv2d(17, 64, 3))
+	relu(Conv2d(64, 32, 3))
+	max_pool2d(2)
+	Linear(128, 64)
+	Linear(64, 1)
+	sigmoid
+loss: binary_cross_entropy
+batch: 128
+dataset: analyzed
+
+constrains: (
+    (1, 2, 2, 2, 7),  // 1 Pawn
+    (1, 2, 2, 1, 8),  // 1 Knight
+    (1, 2, 1, 2, 8),  // 1 Bishop
+    (0, 2, 2, 2, 8),  // 1 Queen
+
+    (1, 2, 2, 1, 7),  // 1 Pawn, 1 Knight
+    (1, 2, 1, 2, 7),  // 1 Pawn, 1 Bishop
+    (0, 2, 2, 2, 7),  // 1 Pawn, 1 Queen
+)
+
+epoch: 7
+best: 0.069160
+

@@ -1,0 +1,41 @@
+ConvNet:
+	relu(Conv2d(17, 64, 3))
+    relu(Conv2d(64, 64, 3))
+	relu(Conv2d(64, 32, 3))
+	Linear(128, 64)
+	Linear(64, 1)
+	sigmoid
+loss: binary_cross_entropy
+batch: 128
+dataset: analyzed
+
+constrains: (
+    (1, 2, 2, 2, 7),  // 1 Pawn
+    (1, 2, 2, 1, 8),  // 1 Knight
+    (1, 2, 1, 2, 8),  // 1 Bishop
+    (0, 2, 2, 2, 8),  // 1 Queen
+
+    (1, 2, 2, 1, 7),  // 1 Pawn, 1 Knight
+    (1, 2, 1, 2, 7),  // 1 Pawn, 1 Bishop
+    (0, 2, 2, 2, 7),  // 1 Pawn, 1 Queen
+
+    (1, 2, 1, 1, 7),  // 1 Pawn, 1 Knight, 1 Bishop
+    (1, 2, 2, 0, 7),  // 1 Pawn, 2 Knights
+    (1, 2, 0, 2, 7),  // 1 Pawn, 2 Bishops
+
+    (1, 1, 2, 2, 8),  // 1 Rook
+    (1, 2, 2, 2, 6),  // 2 Pawns
+
+    // prumerne 19-21 tah
+    (1, 2, 1, 1, 8),  // 1 Bishop, 1 Knight
+    (1, 2, 2, 2, 5),  // 3 Pawns
+
+    // na grafu skoro stejna krivka pro tyhle tri, ale az v 31 tahu
+    (1, 2, 1, 1, 6),  // 1 Bishop, 1 Knight, 2 Pawns
+    (1, 2, 2, 0, 6),  // 2 Knights, 2 Pawns
+    (1, 2, 0, 2, 6)   // 2 Bishops, 2 Pawns
+)
+
+epoch: 8
+best: 0.073364
+

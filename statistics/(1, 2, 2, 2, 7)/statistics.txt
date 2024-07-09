@@ -1,0 +1,11 @@
+------------------- ACCURACY -------------------
+   Satified ratio:   100.000000% -- 125 / 125
+------------------------------------------------
+After how many moves was the constraint satisfied ---------------- 
+	Mean:	5.576
+	Median:	5
+	Min:	5
+	Max:	13
+	Sorted 8 most common:	5 (98), 7 (21), 9 (4), 11 (1), 13 (1), 
+---------------------------
+Unique positions 78.4% 98/125

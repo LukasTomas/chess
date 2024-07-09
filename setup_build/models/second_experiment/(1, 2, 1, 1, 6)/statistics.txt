@@ -1,0 +1,15 @@
+---------------------- ACCURACY -----------------------
+   Satified ratio:   82.400000% -- 103 / 125
+   1 piece difference ratio:   0.800000% -- 1 / 125
+   2 piece difference ratio:   8.800000% -- 11 / 125
+   3 piece difference ratio:   7.200000% -- 9 / 125
+   4 piece difference ratio:   0.800000% -- 1 / 125
+-------------------------------------------------------
+After how many moves was the constraint satisfied ---------------- 
+	Mean:	43.7379
+	Median:	43
+	Min:	17
+	Max:	99
+	Sorted 8 most common:	17 (7), 25 (7), 51 (6), 49 (6), 43 (6), 57 (5), 29 (5), 31 (5), 
+---------------------------
+Unique positions 100% 125/125

@@ -1,0 +1,230 @@
+#include "ChessDataset_2.h"
+
+#include "../terminal/Logging.h"
+#include "../common/System.h"
+
+#include <limits>
+
+
+const vector<string> ChessDataset_2::NOT_ALLOWED_TIMECONTROL = {"60", "120", "180", "240"};
+
+// CONSTRUCTORS ------------------------------------------------------------------------------------------------
+
+ChessDataset_2::ChessDataset_2( const string & filePath ) : path(filePath) {
+    int totalGames = 0;
+    int invalidEloGames = 0;
+    int invalidTimeControlGames = 0;
+
+    DatasetIterator<ConstraintGameData> iterator(filePath);
+
+    double avgParsedGameSize = 0;
+    ParsedGame * game;
+    while( !iterator.IsEnd() ) {
+        if ( (game = iterator.LoadNext()) == nullptr )
+            break;
+
+        totalGames++;
+
+        if ( game->whiteElo < ELO_THRESHOLD || game->blackElo < ELO_THRESHOLD ) {
+            invalidEloGames++;
+            continue;
+        }
+
+        string timeControl = game->timeControl.substr(0, game->timeControl.find('+'));
+        if ( NOT_ALLOWED_TIMECONTROL.end() != find(NOT_ALLOWED_TIMECONTROL.begin(), NOT_ALLOWED_TIMECONTROL.end(), timeControl) ) {
+            invalidTimeControlGames++;
+            continue;
+        }
+
+        // Only count VALID games
+        movesCount += game->moves.size();
+
+        // Push valid game to the vector
+        _games.emplace_back(*game);
+        avgParsedGameSize += sizeof(*game);
+        fillGameResults(*game, *iterator.CurrentAdditionalData());
+    }
+
+    datasetSize = movesCount * constrains.size();
+    backToStart();
+
+    gamesCount = totalGames - (invalidEloGames + invalidTimeControlGames);
+    assert(gamesCount == _games.size());
+    avgParsedGameSize /= gamesCount;
+
+    printLoadingInfo(totalGames, invalidEloGames, invalidTimeControlGames, avgParsedGameSize);
+
+    // // testing
+    // ParsedGame & game1 = _games[0];
+    // cout << "timecontrol: " << game1.timeControl << endl;
+    // int i = 0;
+    // while ( true ) {
+    //     cout << "Result: " << _results[i++] << endl;
+    //     cout << game1.getBoard() << endl << endl;
+
+    //     if ( !game1.isNext() )
+    //         break;
+
+    //     game1.doNextMove();
+    // }
+
+    // throw invalid_argument("test");
+    cout << "again" << endl;
+}
+
+ChessDataset_2::ChessDataset_2(const ChessDataset_2 & dataset)
+: path(dataset.path) {
+    // cout << "copy constructor" << endl;
+
+    gamesCount = dataset.gamesCount;
+    movesCount = dataset.movesCount;
+    datasetSize = dataset.datasetSize;
+
+    _games = dataset._games;
+    _results = dataset._results;
+
+    // cout << "others index " << dataset.datasetIndex << endl;
+    if ( dataset.datasetIndex != 0 )
+        throw logic_error("copy constructor with dataset index != 0");
+
+    // cout << endl;
+    cout << "copy again" << endl;
+}
+
+// PUBLIC METHODS ----------------------------------------------------------------------------------------------
+
+//42090555
+torch::data::Example<> ChessDataset_2::get(size_t index) {
+    if ( (gameIndex + 1) == gamesCount || (index-1) == datasetSize )
+        backToStart();
+
+    ParsedGame & game = _games[gameIndex];
+    if ( constraintIndex == 0 ) {
+        if ( !game.isNext() ) {
+            game.reset();
+            game = loadNextGame();
+            cout << "init move number: " << game.moveNumber << endl;
+            // if ( game.moveNumber != 0 )
+            //     throw logic_error("move number is not zero even tho it's inited!");
+        }
+
+        game.doNextMove();
+    }
+
+    // DOESN'T share memory with board array
+    torch::Tensor boardTensor = torch::zeros({6*2, 8, 8}, torch::kUInt8);
+    game.getBoard().toBitboardsTensor(boardTensor);
+
+    double result = _results[datasetIndex];//getResult(game); ------------------------------------
+    torch::Tensor resultTensor = torch::full({1}, result, torch::kFloat64);
+
+    constraintIndex++;
+    datasetIndex++;
+    if ( constraintIndex == constrains.size() )
+        constraintIndex = 0;
+
+    if ( datasetIndex == 500000 ) {
+        cout << "is here0000000000000000000000000000000000000000000" << endl;
+        backToStart();
+    }
+
+    torch::Tensor constraintTensor = constrains[constraintIndex].toTensor();
+
+    // cout << "board tensor: \n" << boardTensor << endl << endl;
+    // cout << "constraint tensor: " << constraintTensor << endl << endl;
+    // cout << "result tensor: " << resultTensor << endl << endl;
+    // cout << "SATISFIED: " << constraintEvaluation << "----------------------------------------------------------" << endl;
+    auto concatenated_tensor = torch::cat({boardTensor.view({1, -1}), constraintTensor.view({1, -1})}, 1);
+    return {concatenated_tensor, resultTensor};
+}
+
+// returns max number because dataset size is not known beforehand
+torch::optional<size_t> ChessDataset_2::size() const {
+    // return datasetSize;
+    return 500000;
+}
+
+// PRIVATE METHODS --------------------------------------------------------------------------------------------
+
+void ChessDataset_2::backToStart() {
+    // cout << "End of the file reached" << endl;
+    // reset current game
+    _games[gameIndex].reset();
+
+    gameIndex = 0;
+    constraintIndex = 0;
+    datasetIndex = 0;
+
+}
+
+ParsedGame & ChessDataset_2::loadNextGame() {
+    gameIndex++;
+    if ( gameIndex >= _games.size() )
+        throw logic_error("Game index out of bound: " + gameIndex);
+    return _games[gameIndex];
+}
+
+void ChessDataset_2::fillGameResults( ParsedGame & game, ConstraintGameData & gameData ) {
+    while ( true ) {
+        // iterate over constraints
+        for ( int cIndex = 0; cIndex < constrains.size(); cIndex++ )
+            _results.push_back(getResult(game, gameData._data[cIndex], cIndex));
+
+        if ( !game.isNext() )
+            break;
+
+        game.doNextMove();
+    }
+}
+
+double ChessDataset_2::getResult( ParsedGame & game, int futureConstraintFullfilment, int cIndex ) const {
+    // Constraint fullfilment constants
+    const double currentFullfilmentConstant = 0.6;
+    const double futureFullfilmentConstant = 1 - currentFullfilmentConstant;
+
+    array<int, MAX_ARRAY_SIZE_NO_KING> pieceCounts = game.getController().getPieceCounts(White);
+    double currentFullfillment = constrains[cIndex].evaluate(pieceCounts);
+
+    futureConstraintFullfilment = futureConstraintFullfilment != 0 ? 1 : 0;
+
+    double composedResult = (currentFullfillment != 0) ?
+        (currentFullfilmentConstant*currentFullfillment + futureFullfilmentConstant*futureConstraintFullfilment)
+        : 0;
+
+    return composedResult;
+}
+
+void ChessDataset_2::printLoadingInfo(int totalGames, int invalidEloGames, int invalidTimeControlGames, double avgParsedGameSize) const {
+    cout << "Total games:\t\t\t" << totalGames << endl;
+    cout << "Invalid elo games:\t\t" << invalidEloGames << endl;
+    cout << "Invalid time control games:\t" << invalidTimeControlGames << endl;
+    cout << "----------------------------------------------------------------------------------" << endl;
+    cout << "Valid games:\t\t\t" << gamesCount << endl;
+    cout << "Moves:\t\t\t\t" << movesCount << endl;
+    cout << "Constrains:\t\t\t" << constrains.size() << endl;
+    cout << "TOTAL DATASET SIZE:\t\t" << datasetSize << endl;
+
+
+    const size_t validGamesCount = gamesCount;
+    const size_t parsedGamesSize = _games.size() * avgParsedGameSize;
+
+    LOG_NOTICE << "----------------------------------------------------------------------------------" << endl;
+    cout << "Valid games saved: " << validGamesCount << " - ";
+    LOG_WARNING << "TOTALLY ALLOCATED MEMORY: ";
+    cout << _games.size() << " * " << avgParsedGameSize << " = ";
+    LOG_WARNING << parsedGamesSize/MB_CONSTANT << " MB" << endl;
+
+    const size_t resultsSize = datasetSize * sizeof(double);
+    LOG_WARNING << "Will use another ";
+    cout << datasetSize << " * " << sizeof(double) << " = ";
+    LOG_WARNING << resultsSize/MB_CONSTANT << " MB for SAVED RESULTS" << endl;
+    LOG_WARNING << "TOTAL MEMORY USAGE: " << (parsedGamesSize + resultsSize)/MB_CONSTANT << " MB" << endl;
+    cout << "(If ";
+    LOG_INFO << "all the board data ";
+    cout << "were to be allocated, it would occupy ";
+    LOG_INFO << (movesCount * 6 * 2 * 8 * 8 * sizeof(uint8_t))/MB_CONSTANT << " MB";
+    cout << " - ";
+    LOG_INFO << "free RAM is " << ((double)systemStats::GetFreeMemorySize())/GB_CONSTANT << " GB";
+    cout << ")" << endl;
+    LOG_NOTICE << "----------------------------------------------------------------------------------" << endl << endl;
+}

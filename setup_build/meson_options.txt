@@ -1,0 +1,1 @@
+option('main', type: 'combo', choices: ['RandomGame', 'MinimaxGame', 'ParsePgn', 'CreateCsv', 'TestLibTorch', 'GeneratePositions', 'ShowGenerated'], description: 'Select the main file')

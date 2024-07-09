@@ -1,0 +1,17 @@
+---------------------- ACCURACY ----------------------
+   Satified ratio:   93.000000% -- 279 / 300
+   1 piece difference ratio:   0.333333% -- 1 / 300
+   2 piece difference ratio:   2.000000% -- 6 / 300
+   3 piece difference ratio:   1.666667% -- 5 / 300
+   4 piece difference ratio:   1.666667% -- 5 / 300
+   5 piece difference ratio:   1.000000% -- 3 / 300
+   9 piece difference ratio:   0.333333% -- 1 / 300
+------------------------------------------------------
+After how many moves was the constraint satisfied ---------------- 
+	Mean:	26.4767
+	Median:	21
+	Min:	7
+	Max:	143
+	Sorted 8 most common:	17 (27), 13 (25), 11 (24), 15 (22), 19 (21), 21 (19), 23 (16), 9 (14), 
+---------------------------
+Unique positions 100% 300/300
